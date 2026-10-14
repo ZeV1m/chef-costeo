@@ -9,6 +9,7 @@ export default function IngredientsManager() {
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('g');
   const [cost, setCost] = useState('');
+  const [wasteCoefficient, setWasteCoefficient] = useState('1');
   const [loading, setLoading] = useState(false);
 
   // Estado para edición
@@ -35,6 +36,10 @@ export default function IngredientsManager() {
 
     setLoading(true);
 
+    const baseCost = parseFloat(cost) || 0;
+    const coefficient = parseFloat(wasteCoefficient) || 1;
+    const finalCostWithWaste = baseCost * coefficient;
+
     if (editingId) {
       // Editar insumo existente
       const { error } = await supabase
@@ -42,7 +47,7 @@ export default function IngredientsManager() {
         .update({
           name,
           unit,
-          cost_per_unit: parseFloat(cost),
+          cost_per_unit: finalCostWithWaste,
         })
         .eq('id', editingId);
 
@@ -50,6 +55,7 @@ export default function IngredientsManager() {
         setEditingId(null);
         setName('');
         setCost('');
+        setWasteCoefficient('1');
         setUnit('g');
         fetchIngredients();
       }
@@ -59,13 +65,14 @@ export default function IngredientsManager() {
         {
           name,
           unit,
-          cost_per_unit: parseFloat(cost),
+          cost_per_unit: finalCostWithWaste,
         },
       ]);
 
       if (!error) {
         setName('');
         setCost('');
+        setWasteCoefficient('1');
         fetchIngredients();
       }
     }
@@ -78,25 +85,27 @@ export default function IngredientsManager() {
     setName(item.name);
     setUnit(item.unit);
     setCost(item.cost_per_unit.toString());
+    setWasteCoefficient('1');
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setName('');
     setCost('');
+    setWasteCoefficient('1');
     setUnit('g');
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-8">
+    <div className="bg-white p-6 rounded-xl shadow-md border border-purple-100 mb-8">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-gray-800">
+        <h2 className="text-xl font-bold text-purple-950">
           {editingId ? 'Editar Insumo' : 'Gestión de Insumos'}
         </h2>
         {editingId && (
           <button
             onClick={handleCancelEdit}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
+            className="text-sm text-purple-500 hover:text-purple-700 underline"
           >
             Cancelar Edición
           </button>
@@ -104,15 +113,15 @@ export default function IngredientsManager() {
       </div>
 
       {/* Formulario de Registro / Edición */}
-      <form onSubmit={handleSaveIngredient} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div>
+      <form onSubmit={handleSaveIngredient} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="md:col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Insumo</label>
           <input
             type="text"
             placeholder="Ej: Harina de Trigo"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-950 placeholder-gray-400 font-medium"
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-gray-950 placeholder-gray-400 font-medium"
             required
           />
         </div>
@@ -122,7 +131,7 @@ export default function IngredientsManager() {
           <select
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-950 font-medium"
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-gray-950 font-medium"
           >
             <option value="g">Gramos (g)</option>
             <option value="kg">Kilogramos (kg)</option>
@@ -133,15 +142,27 @@ export default function IngredientsManager() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Costo por Unidad ($)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Costo Base ($)</label>
           <input
             type="number"
             step="0.01"
-            placeholder="Ej: 15.50"
+            placeholder="Ej: 20.00"
             value={cost}
             onChange={(e) => setCost(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-950 placeholder-gray-400 font-medium"
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-gray-950 placeholder-gray-400 font-medium"
             required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Coef. Merma (Ej: 1.20)</label>
+          <input
+            type="number"
+            step="0.01"
+            placeholder="Ej: 1"
+            value={wasteCoefficient}
+            onChange={(e) => setWasteCoefficient(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-gray-950 placeholder-gray-400 font-medium"
           />
         </div>
 
@@ -150,10 +171,10 @@ export default function IngredientsManager() {
             type="submit"
             disabled={loading}
             className={`w-full text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:bg-gray-400 ${
-              editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+              editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-purple-600 hover:bg-purple-700'
             }`}
           >
-            {loading ? 'Guardando...' : editingId ? 'Actualizar Insumo' : 'Agregar Insumo'}
+            {loading ? 'Guardando...' : editingId ? 'Actualizar' : 'Agregar'}
           </button>
         </div>
       </form>
@@ -162,11 +183,11 @@ export default function IngredientsManager() {
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="p-3 text-sm font-semibold text-gray-600">Nombre</th>
-              <th className="p-3 text-sm font-semibold text-gray-600">Unidad</th>
-              <th className="p-3 text-sm font-semibold text-gray-600">Costo / Unidad</th>
-              <th className="p-3 text-sm font-semibold text-gray-600 text-right">Acciones</th>
+            <tr className="bg-purple-50/50 border-b border-purple-100">
+              <th className="p-3 text-sm font-semibold text-purple-900">Nombre</th>
+              <th className="p-3 text-sm font-semibold text-purple-900">Unidad</th>
+              <th className="p-3 text-sm font-semibold text-purple-900">Costo Real / Unidad (con Merma)</th>
+              <th className="p-3 text-sm font-semibold text-purple-900 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -178,16 +199,16 @@ export default function IngredientsManager() {
               </tr>
             ) : (
               ingredients.map((item) => (
-                <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr key={item.id} className="border-b border-gray-100 hover:bg-purple-50/30">
                   <td className="p-3 text-gray-800 font-medium">{item.name}</td>
                   <td className="p-3 text-gray-600">{item.unit}</td>
                   <td className="p-3 text-gray-800 font-semibold">
-                    ${item.cost_per_unit.toLocaleString('es-CO')}
+                    ${item.cost_per_unit.toLocaleString('es-CO', { maximumFractionDigits: 2 })}
                   </td>
                   <td className="p-3 text-right">
                     <button
                       onClick={() => handleStartEdit(item)}
-                      className="text-blue-600 hover:text-blue-800 text-xs font-semibold underline"
+                      className="text-purple-600 hover:text-purple-800 text-xs font-semibold underline"
                     >
                       Editar
                     </button>

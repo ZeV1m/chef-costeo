@@ -18,7 +18,7 @@ export default function RecipesManager() {
   
   const [recipeName, setRecipeName] = useState('');
   const [description, setDescription] = useState('');
-  const [servings, setServings] = useState(1);
+  const [servings, setServings] = useState<string>('1');
   const [contingency, setContingency] = useState(5.00);
   const [impoconsumo, setImpoconsumo] = useState(8.00);
   
@@ -93,6 +93,19 @@ export default function RecipesManager() {
     setLoading(true);
     setErrorMessage('');
 
+    // Calcular el costo total preliminar para la sub-receta / receta
+    const rawCost = selectedIngredients.reduce((acc, item) => {
+      const ing = ingredients.find((i) => i.id === item.ingredient_id);
+      return acc + (ing?.cost_per_unit || 0) * item.quantity;
+    }, 0);
+
+    const contingencyCost = rawCost * (contingency / 100);
+    const subtotalWithContingency = rawCost + contingencyCost;
+    const impoconsumoCost = subtotalWithContingency * (impoconsumo / 100);
+    const totalCost = subtotalWithContingency + impoconsumoCost;
+    const parsedServings = Number(servings) || 1;
+    const costPerServing = parsedServings > 0 ? totalCost / parsedServings : totalCost;
+
     // 1. Insertar Receta Principal
     const { data: recipeData, error: recipeError } = await supabase
       .from('recipes')
@@ -100,7 +113,7 @@ export default function RecipesManager() {
         {
           name: recipeName,
           description,
-          servings: Number(servings),
+          servings: parsedServings,
           contingency_percentage: Number(contingency),
           impoconsumo_percentage: Number(impoconsumo),
         },
@@ -131,10 +144,23 @@ export default function RecipesManager() {
       return;
     }
 
+    // 3. Sincronizar automáticamente la receta como un Insumo (para que actúe como Sub-receta)[cite: 7, 8]
+    const { error: ingredientSyncError } = await supabase.from('ingredients').insert([
+      {
+        name: `[Base] ${recipeName}`,
+        unit: 'porción',
+        cost_per_unit: costPerServing,
+      },
+    ]);
+
+    if (ingredientSyncError) {
+      console.warn('Advertencia al sincronizar receta como insumo:', ingredientSyncError.message);
+    }
+
     // Limpiar formulario y refrescar datos
     setRecipeName('');
     setDescription('');
-    setServings(1);
+    setServings('1');
     setSelectedIngredients([]);
     await fetchData();
     setLoading(false);
@@ -175,7 +201,7 @@ export default function RecipesManager() {
     <div className="space-y-8">
       {/* Formulario de Creación */}
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Crear Nueva Receta</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Crear Nueva Receta / Base</h2>
 
         {errorMessage && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
@@ -189,7 +215,7 @@ export default function RecipesManager() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Receta</label>
               <input
                 type="text"
-                placeholder="Ej: Tarta de Manzana"
+                placeholder="Ej: Ganache Básica"
                 value={recipeName}
                 onChange={(e) => setRecipeName(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-950 placeholder-gray-400 font-medium"
@@ -203,7 +229,7 @@ export default function RecipesManager() {
                 type="number"
                 min="1"
                 value={servings}
-                onChange={(e) => setServings(Number(e.target.value))}
+                onChange={(e) => setServings(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-950 font-medium"
                 required
               />
@@ -245,7 +271,7 @@ export default function RecipesManager() {
           </div>
 
           <div className="border-t pt-4">
-            <h3 className="text-md font-semibold text-gray-700 mb-3">Agregar Insumos a la Receta</h3>
+            <h3 className="text-md font-semibold text-gray-700 mb-3">Agregar Insumos o Bases</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <select
@@ -253,7 +279,7 @@ export default function RecipesManager() {
                   onChange={(e) => setCurrentIngredientId(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-950 font-medium"
                 >
-                  <option value="">-- Selecciona un Insumo --</option>
+                  <option value="">-- Selecciona un Insumo o Base --</option>
                   {ingredients.map((ing) => (
                     <option key={ing.id} value={ing.id}>
                       {ing.name} (${ing.cost_per_unit} / {ing.unit})
@@ -289,7 +315,7 @@ export default function RecipesManager() {
                 <table className="w-full text-left border-collapse border rounded-lg">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="p-2 text-sm text-gray-600">Insumo</th>
+                      <th className="p-2 text-sm text-gray-600">Insumo / Base</th>
                       <th className="p-2 text-sm text-gray-600">Cantidad</th>
                       <th className="p-2 text-sm text-gray-600">Subtotal</th>
                       <th className="p-2 text-sm text-gray-600 text-right">Acción</th>
@@ -327,7 +353,7 @@ export default function RecipesManager() {
             disabled={loading || selectedIngredients.length === 0}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-400"
           >
-            {loading ? 'Guardando Receta...' : 'Guardar Receta Completa'}
+            {loading ? 'Guardando Receta...' : 'Guardar Receta y Registrar como Base'}
           </button>
         </form>
       </div>
@@ -381,7 +407,7 @@ export default function RecipesManager() {
                     <table className="w-full text-left text-sm border-collapse">
                       <thead>
                         <tr className="text-gray-500 border-b">
-                          <th className="pb-2">Insumo</th>
+                          <th className="pb-2">Insumo / Base</th>
                           <th className="pb-2">Cantidad</th>
                           <th className="pb-2">Costo Unitario</th>
                           <th className="pb-2 text-right">Subtotal</th>
