@@ -346,13 +346,16 @@ export default function RecipesManager() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">% Costo Deseado (para PPV)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                % Costo Deseado (para PPV) {recipeType === 'base' && <span className="text-xs text-gray-400 italic">(No aplica para Bases)</span>}
+              </label>
               <input
                 type="number"
                 step="0.1"
                 value={desiredCostPercentage}
+                disabled={recipeType === 'base'}
                 onChange={(e) => setDesiredCostPercentage(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-950 font-medium"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium ${recipeType === 'base' ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'text-gray-950'}`}
               />
             </div>
           </div>
@@ -466,8 +469,8 @@ export default function RecipesManager() {
 
               const isBase = recipe.recipe_type === 'base';
               const parsedDesiredPct = parseFloat(desiredCostPercentage) || 30;
-              // Cálculo del Precio de Venta (PPV) por regla de tres (Costo Porción / % deseado * 100)
-              const suggestedPPV = parsedDesiredPct > 0 ? costPerServing / (parsedDesiredPct / 100) : 0;
+              // Cálculo del Precio de Venta (PPV) solo si es Principal
+              const suggestedPPV = !isBase && parsedDesiredPct > 0 ? costPerServing / (parsedDesiredPct / 100) : 0;
 
               return (
                 <div key={recipe.id} id={`recipe-card-${recipe.id}`} className="border border-gray-200 rounded-xl p-5 bg-gray-50/50 shadow-sm">
@@ -535,7 +538,7 @@ export default function RecipesManager() {
                     </table>
                   </div>
 
-                  <div className="bg-white p-4 rounded-lg border border-gray-200 grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
+                  <div className={`bg-white p-4 rounded-lg border border-gray-200 grid grid-cols-2 ${isBase ? 'md:grid-cols-5' : 'md:grid-cols-6'} gap-4 text-center`}>
                     <div>
                       <p className="text-xs text-gray-500 uppercase font-semibold">Costo Bruto</p>
                       <p className="text-md font-bold text-gray-800">${rawCost.toLocaleString('es-CO', { maximumFractionDigits: 2 })}</p>
@@ -556,10 +559,12 @@ export default function RecipesManager() {
                       <p className="text-xs text-emerald-700 uppercase font-extrabold">Costo por Porción</p>
                       <p className="text-lg font-extrabold text-emerald-800">${costPerServing.toLocaleString('es-CO', { maximumFractionDigits: 2 })}</p>
                     </div>
-                    <div className="bg-purple-50 p-2 rounded border border-purple-200">
-                      <p className="text-xs text-purple-700 uppercase font-extrabold">PPV ({desiredCostPercentage}%)</p>
-                      <p className="text-lg font-extrabold text-purple-800">${suggestedPPV.toLocaleString('es-CO', { maximumFractionDigits: 2 })}</p>
-                    </div>
+                    {!isBase && (
+                      <div className="bg-purple-50 p-2 rounded border border-purple-200">
+                        <p className="text-xs text-purple-700 uppercase font-extrabold">PPV ({desiredCostPercentage}%)</p>
+                        <p className="text-lg font-extrabold text-purple-800">${suggestedPPV.toLocaleString('es-CO', { maximumFractionDigits: 2 })}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
