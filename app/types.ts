@@ -13,6 +13,7 @@ export interface Recipe {
   servings: number;
   contingency_percentage: number;
   impoconsumo_percentage: number;
+  recipe_type?: 'base' | 'main'; // 'base' para subrecetas, 'main' para platos finales
   created_at?: string;
 }
 
